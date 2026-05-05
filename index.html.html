@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#060c14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChemTrack">
+<meta name="description" content="Smart Chemical Expiry Manager">
+
+<!-- PWA Manifest inline -->
+<script>
+const manifestData = {
+  name: "ChemTrack — Smart Chemical Expiry Manager",
+  short_name: "ChemTrack",
+  description: "Smart Chemical Expiry Manager",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#060c14",
+  theme_color: "#00e5ff",
+  orientation: "portrait-primary",
+  icons: [
+    { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='24' fill='%23060c14'/><text y='130' x='30' font-size='120'>⚗️</text></svg>", sizes: "192x192", type: "image/svg+xml" },
+    { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='64' fill='%23060c14'/><text y='360' x='60' font-size='320'>⚗️</text></svg>", sizes: "512x512", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+const manifestUrl = URL.createObjectURL(blob);
+const link = document.createElement('link');
+link.rel = 'manifest';
+link.href = manifestUrl;
+document.head.appendChild(link);
+</script>
+
+<title>ChemTrack — Smart Chemical Expiry Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #060c14;
+    --bg2: #0a1420;
+    --bg3: #0f1e2e;
+    --panel: #0d1b2a;
+    --border: #1a3450;
+    --accent: #00e5ff;
+    --accent2: #00ff9d;
+    --warn: #ffaa00;
+    --danger: #ff3c5f;
+    --text: #c8dff0;
+    --text-dim: #4a7090;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Exo 2', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,229,255,0.06) 0%, transparent 70%);
+    top: -200px; right: -200px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* INSTALL BANNER */
+  #installBanner {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(135deg, var(--panel), var(--bg3));
+    border-top: 1px solid var(--accent);
+    padding: 16px 20px;
+    z-index: 500;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 -8px 32px rgba(0,229,255,0.15);
+    animation: slide-up 0.4s ease;
+  }
+  @keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  #installBanner.show { display: flex; }
+  .install-text { flex: 1; }
+  .install-text strong { display: block; color: #fff; font-size: 14px; margin-bottom: 2px; }
+  .install-text span { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
+  .install-btn {
+    background: linear-gradient(135deg, var(--accent), #0090a8);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .install-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  /* OFFLINE BADGE */
+  #offlineBadge {
+    display: none;
+    position: fixed;
+    top: 12px; right: 12px;
+    background: rgba(255,60,95,0.2);
+    border: 1px solid var(--danger);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--danger);
+    z-index: 300;
+    letter-spacing: 1px;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    padding: 20px 0 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 1;
+    position: sticky;
+    top: 0;
+    background: rgba(6,12,20,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 16px rgba(0,229,255,0.3);
+    animation: pulse-border 3s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 16px rgba(0,229,255,0.3); }
+    50% { box-shadow: 0 0 30px rgba(0,229,255,0.6); }
+  }
+  .logo-text h1 {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+  .logo-text p {
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+  }
+  .header-stats {
+    display: flex;
+    gap: 8px;
+  }
+  .stat-pill {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .stat-pill span { color: var(--accent); font-weight: bold; }
+
+  #alertBanner {
+    display: none;
+    background: linear-gradient(135deg, rgba(255,60,95,0.15), rgba(255,60,95,0.05));
+    border: 1px solid rgba(255,60,95,0.5);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin: 12px 0 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--danger);
+    animation: blink-danger 1.5s ease-in-out infinite;
+  }
+  @keyframes blink-danger {
+    0%,100% { border-color: rgba(255,60,95,0.5); }
+    50% { border-color: rgba(255,60,95,1); }
+  }
+
+  /* MOBILE NAV */
+  .mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(10,20,32,0.97);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 200;
+    padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  }
+  .mobile-nav-items {
+    display: flex;
+    justify-content: space-around;
+  }
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .mobile-nav-item.active { color: var(--accent); }
+  .mobile-nav-item .nav-icon { font-size: 20px; }
+
+  /* Main layout */
+  .main {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 20px;
+    padding: 20px 0 40px;
+    position: relative; z-index: 1;
+  }
+
+  /* Panels */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,229,255,0.03);
+  }
+  .panel-header h2 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+  .panel-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: dot-pulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes dot-pulse {
+    0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+  }
+  .panel-body { padding: 16px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,229,255,0.02);
+  }
+  .tab {
+    flex: 1;
+    padding: 11px 4px;
+    text-align: center;
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: var(--text-dim);
+    border: none;
+    background: none;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(0,229,255,0.05);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* QR Scanner */
+  #qr-reader {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+  #qr-reader * { font-family: var(--sans) !important; }
+  #qr-reader img { display: none !important; }
+  #qr-reader select, #qr-reader button {
+    background: var(--bg3) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    padding: 6px 12px !important;
+    cursor: pointer !important;
+  }
+
+  .scanner-result {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(0,255,157,0.08);
+    border: 1px solid rgba(0,255,157,0.3);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent2);
+    word-break: break-all;
+    display: none;
+  }
+
+  /* Form */
+  .form-grid { display: flex; flex-direction: column; gap: 12px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field label {
+    display: block;
+    font-size: 9px;
+    font-family: var(--mono);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,229,255,0.1);
+  }
+  .field input::placeholder { color: var(--text-dim); }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    touch-action: manipulation;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #0090a8);
+    color: #000;
+    box-shadow: 0 4px 16px rgba(0,229,255,0.25);
+  }
+  .btn-primary:hover, .btn-primary:active {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(0,229,255,0.4);
+  }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Generate QR */
+  .qr-gen-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 0;
+  }
+  #qrCanvas {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: none;
+    max-width: 100%;
+  }
+
+  /* RIGHT SIDE */
+  .right-panel { display: flex; flex-direction: column; gap: 20px; }
+
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .filter-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    touch-action: manipulation;
+  }
+  .filter-btn.active, .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,0.05);
+  }
+  .filter-btn.warn-btn.active { border-color: var(--warn); color: var(--warn); background: rgba(255,170,0,0.05); }
+  .filter-btn.danger-btn.active { border-color: var(--danger); color: var(--danger); background: rgba(255,60,95,0.05); }
+
+  #chemList {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .chem-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.25s;
+    animation: card-in 0.35s ease forwards;
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .chem-card:hover {
+    border-color: rgba(0,229,255,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .chem-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .chem-card.status-ok::before { background: var(--accent2); }
+  .chem-card.status-warn7::before { background: var(--warn); }
+  .chem-card.status-warn3::before { background: var(--warn); animation: stripe-blink 1s ease-in-out infinite; }
+  .chem-card.status-expired::before { background: var(--danger); animation: stripe-blink 0.6s ease-in-out infinite; }
+  @keyframes stripe-blink { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+
+  .card-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    font-size: 8px;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 10px;
+    font-weight: bold;
+  }
+  .badge-ok { background: rgba(0,255,157,0.15); color: var(--accent2); border: 1px solid rgba(0,255,157,0.3); }
+  .badge-warn7 { background: rgba(255,170,0,0.15); color: var(--warn); border: 1px solid rgba(255,170,0,0.3); }
+  .badge-warn3 { background: rgba(255,170,0,0.25); color: var(--warn); border: 1px solid var(--warn); }
+  .badge-expired { background: rgba(255,60,95,0.2); color: var(--danger); border: 1px solid var(--danger); }
+
+  .card-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 3px; padding-right: 65px; }
+  .card-id { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-bottom: 10px; }
+
+  .card-info { display: grid; gap: 5px; }
+  .card-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+  }
+  .card-info-row .lbl { color: var(--text-dim); font-family: var(--mono); }
+  .card-info-row .val { color: var(--text); font-weight: 600; }
+  .card-info-row .val.red { color: var(--danger); }
+  .card-info-row .val.orange { color: var(--warn); }
+  .card-info-row .val.green { color: var(--accent2); }
+
+  .days-bar { margin-top: 8px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .days-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  .card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+  .card-action-btn {
+    flex: 1;
+    padding: 5px 4px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-dim);
+    font-size: 9px;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    touch-action: manipulation;
+  }
+  .card-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .card-action-btn.del:hover { border-color: var(--danger); color: var(--danger); }
+
+  .empty-state {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state p { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    display: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    animation: modal-in 0.25s ease;
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .modal h3 { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 4px; letter-spacing: 1px; }
+  .modal p { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; font-family: var(--mono); }
+  .modal-close {
+    position: absolute; top: 14px; right: 14px;
+    background: none; border: none; color: var(--text-dim);
+    font-size: 18px; cursor: pointer;
+  }
+
+  /* Toast */
+  .toast-container {
+    position: fixed;
+    bottom: 90px; right: 16px;
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: calc(100vw - 32px);
+  }
+  .toast {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    min-width: 220px;
+    display: flex; align-items: center; gap: 10px;
+    animation: toast-in 0.3s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .toast.success { border-color: rgba(0,255,157,0.4); }
+  .toast.warning { border-color: rgba(255,170,0,0.5); }
+  .toast.error { border-color: rgba(255,60,95,0.5); }
+  .toast-icon { font-size: 16px; }
+
+  /* MOBILE VIEW - screens under 800px show mobile layout */
+  @media (max-width: 800px) {
+    .main {
+      grid-template-columns: 1fr;
+      padding-bottom: 80px;
+    }
+    #chemList { grid-template-columns: 1fr 1fr; }
+    .header-stats { display: none; }
+    .mobile-nav { display: block; }
+    .left-panel { display: none; }
+    .left-panel.mobile-active { display: block; }
+    .right-panel { display: none; }
+    .right-panel.mobile-active { display: block; }
+    .toast-container { bottom: 100px; }
+    #installBanner { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  }
+
+  @media (max-width: 480px) {
+    #chemList { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="offlineBadge">● OFFLINE</div>
+
+<div class="container">
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">⚗️</div>
+        <div class="logo-text">
+          <h1>ChemTrack</h1>
+          <p>Smart Expiry Mgmt</p>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div class="stat-pill">Total <span id="statTotal">0</span></div>
+        <div class="stat-pill" style="border-color:rgba(255,170,0,0.4)">Expiring <span id="statWarn" style="color:var(--warn)">0</span></div>
+        <div class="stat-pill" style="border-color:rgba(255,60,95,0.4)">Expired <span id="statExp" style="color:var(--danger)">0</span></div>
+      </div>
+    </div>
+    <div id="alertBanner">⚠ CRITICAL ALERT — Expired chemicals detected. Immediate action required.</div>
+  </header>
+
+  <div class="main">
+    <!-- LEFT: Input Panel -->
+    <div class="left-panel mobile-active">
+      <div class="panel">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('scan')">📷 Scan</button>
+          <button class="tab" onclick="switchTab('manual')">✏️ Add</button>
+          <button class="tab" onclick="switchTab('generate')">🔲 QR</button>
+        </div>
+
+        <!-- SCAN TAB -->
+        <div id="tab-scan" class="tab-content active panel-body">
+          <div id="qr-reader"></div>
+          <div id="scanResult" class="scanner-result"></div>
+          <p style="font-size:11px;color:var(--text-dim);margin-top:10px;font-family:var(--mono);line-height:1.6;">
+            Scan a ChemTrack QR code to auto-fill and save.
+          </p>
+          <div id="scannedForm" style="display:none;margin-top:14px;">
+            <div class="panel-header" style="border-radius:6px 6px 0 0;margin-bottom:0;">
+              <div class="panel-dot"></div>
+              <h2>Confirm & Save</h2>
+            </div>
+            <div id="scannedFields" style="background:var(--bg2);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:12px;"></div>
+            <button class="btn btn-primary" style="margin-top:12px;" onclick="saveScannedChem()">💾 Save Chemical</button>
+          </div>
+        </div>
+
+        <!-- MANUAL TAB -->
+        <div id="tab-manual" class="tab-content panel-body">
+          <div class="form-grid">
+            <div class="field">
+              <label>Chemical Name *</label>
+              <input type="text" id="chemName" placeholder="e.g. Hydrochloric Acid">
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Chemical ID</label>
+                <input type="text" id="chemId" placeholder="Auto-generated">
+              </div>
+              <div class="field">
+                <label>Quantity</label>
+                <input type="text" id="chemQty" placeholder="e.g. 500 mL">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Manufacturer *</label>
+                <input type="text" id="chemMfg" placeholder="Sigma-Aldrich">
+              </div>
+              <div class="field">
+                <label>Batch No.</label>
+                <input type="text" id="chemBatch" placeholder="LOT#">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Mfg. Date *</label>
+                <input type="date" id="chemMfgDate">
+              </div>
+              <div class="field">
+                <label>Expiry Date *</label>
+                <input type="date" id="chemExpDate">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Storage Location</label>
+                <input type="text" id="chemLoc" placeholder="e.g. Shelf A-3">
+              </div>
+              <div class="field">
+                <label>Hazard Level</label>
+                <select id="chemHazard">
+                  <option value="Low">Low</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="High">High</option>
+                  <option value="Extreme">Extreme</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="addChemical()">+ Add Chemical</button>
+          </div>
+        </div>
+
+        <!-- GENERATE QR TAB -->
+        <div id="tab-generate" class="tab-content panel-body">
+          <div class="form-grid">
+            <div class="field">
+              <label>Chemical Name *</label>
+              <input type="text" id="genName" placeholder="e.g. Ethanol">
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Mfg. Date *</label>
+                <input type="date" id="genMfgDate">
+              </div>
+              <div class="field">
+                <label>Expiry Date *</label>
+                <input type="date" id="genExpDate">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Manufacturer</label>
+                <input type="text" id="genMfg" placeholder="Manufacturer">
+              </div>
+              <div class="field">
+                <label>Quantity</label>
+                <input type="text" id="genQty" placeholder="500 mL">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Hazard Level</label>
+                <select id="genHazard">
+                  <option value="Low">Low</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="High">High</option>
+                  <option value="Extreme">Extreme</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Location</label>
+                <input type="text" id="genLoc" placeholder="Shelf A-3">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="generateQR()">🔲 Generate QR Code</button>
+            <div class="qr-gen-area">
+              <canvas id="qrCanvas"></canvas>
+              <button class="btn btn-secondary" id="downloadQrBtn" style="display:none;width:auto;padding:8px 20px;" onclick="downloadQR()">⬇ Download QR</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Inventory Panel -->
+    <div class="right-panel">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-dot"></div>
+          <h2>Chemical Inventory</h2>
+        </div>
+        <div class="panel-body">
+          <div class="filter-bar">
+            <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+            <button class="filter-btn warn-btn" onclick="setFilter('warn', this)">⚠ Expiring</button>
+            <button class="filter-btn danger-btn" onclick="setFilter('expired', this)">🔴 Expired</button>
+            <button class="filter-btn" onclick="setFilter('ok', this)">✅ Safe</button>
+          </div>
+          <div id="chemList">
+            <div class="empty-state">
+              <div class="icon">⚗️</div>
+              <p>NO CHEMICALS LOGGED</p>
+              <p style="margin-top:8px;font-size:10px;opacity:0.6">Add via manual entry or QR scan</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Bottom Nav -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-items">
+    <button class="mobile-nav-item active" onclick="mobileNav('scan', this)">
+      <span class="nav-icon">📷</span>
+      <span>Scan</span>
+    </button>
+    <button class="mobile-nav-item" onclick="mobileNav('add', this)">
+      <span class="nav-icon">✏️</span>
+      <span>Add</span>
+    </button>
+    <button class="mobile-nav-item" onclick="mobileNav('qr', this)">
+      <span class="nav-icon">🔲</span>
+      <span>Gen QR</span>
+    </button>
+    <button class="mobile-nav-item" onclick="mobileNav('list', this)">
+      <span class="nav-icon">📋</span>
+      <span>Inventory</span>
+    </button>
+  </div>
+</nav>
+
+<!-- Install Banner -->
+<div id="installBanner">
+  <span style="font-size:24px">📲</span>
+  <div class="install-text">
+    <strong>Install ChemTrack App</strong>
+    <span>Add to home screen for offline use</span>
+  </div>
+  <button class="install-btn" onclick="installApp()">Install</button>
+  <button class="install-dismiss" onclick="dismissInstall()">✕</button>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>Edit Chemical</h3>
+    <p id="editModalSub">Update chemical details</p>
+    <div class="form-grid" id="editFormContent"></div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- QR Script (fallback canvas-based) -->
+<script>
+// ─── QR Code Generator (simple, no external dep needed for generation) ───────
+// We'll use a lightweight QR encoder approach via canvas
+// For scanning we use html5-qrcode CDN already loaded
+
+// ─── DATA STORE (localStorage for persistence) ────────────────────────────────
+let chemicals = JSON.parse(localStorage.getItem('chemtrack_chemicals') || '[]');
+let currentFilter = 'all';
+let scannedData = null;
+let deferredInstallPrompt = null;
+
+function save() {
+  localStorage.setItem('chemtrack_chemicals', JSON.stringify(chemicals));
+}
+
+// ─── MOBILE NAV ───────────────────────────────────────────────────────────────
+function mobileNav(section, btn) {
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const left = document.querySelector('.left-panel');
+  const right = document.querySelector('.right-panel');
+
+  if (section === 'list') {
+    left.classList.remove('mobile-active');
+    right.classList.add('mobile-active');
+  } else {
+    right.classList.remove('mobile-active');
+    left.classList.add('mobile-active');
+    const tabMap = { scan: 'scan', add: 'manual', qr: 'generate' };
+    switchTab(tabMap[section]);
+  }
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`#tab-${name}`).classList.add('active');
+  const tabs = document.querySelectorAll('.tab');
+  const map = { scan: 0, manual: 1, generate: 2 };
+  tabs[map[name]]?.classList.add('active');
+}
+
+// ─── STATUS LOGIC ─────────────────────────────────────────────────────────────
+function getStatus(expDate) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const exp = new Date(expDate);
+  const diff = Math.floor((exp - now) / 86400000);
+  if (diff < 0) return { status: 'expired', days: diff, label: 'EXPIRED', badge: 'badge-expired', cls: 'status-expired' };
+  if (diff <= 3) return { status: 'warn3', days: diff, label: `${diff}d LEFT`, badge: 'badge-warn3', cls: 'status-warn3' };
+  if (diff <= 7) return { status: 'warn7', days: diff, label: `${diff}d LEFT`, badge: 'badge-warn7', cls: 'status-warn7' };
+  return { status: 'ok', days: diff, label: 'SAFE', badge: 'badge-ok', cls: 'status-ok' };
+}
+
+function getDaysBarColor(status) {
+  if (status === 'expired') return 'var(--danger)';
+  if (status === 'warn3' || status === 'warn7') return 'var(--warn)';
+  return 'var(--accent2)';
+}
+
+function getDaysBarWidth(expDate, mfgDate) {
+  const exp = new Date(expDate);
+  const mfg = new Date(mfgDate || expDate);
+  const total = Math.max((exp - mfg) / 86400000, 1);
+  const now = new Date();
+  const remaining = (exp - now) / 86400000;
+  return Math.max(0, Math.min(100, (remaining / total) * 100));
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderList() {
+  const list = document.getElementById('chemList');
+  let items = chemicals;
+  if (currentFilter === 'warn') items = chemicals.filter(c => ['warn3','warn7'].includes(getStatus(c.expDate).status));
+  if (currentFilter === 'expired') items = chemicals.filter(c => getStatus(c.expDate).status === 'expired');
+  if (currentFilter === 'ok') items = chemicals.filter(c => getStatus(c.expDate).status === 'ok');
+
+  if (!items.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">⚗️</div><p>NO CHEMICALS FOUND</p><p style="margin-top:8px;font-size:10px;opacity:0.6">No chemicals match this filter</p></div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(c => {
+    const { status, days, label, badge, cls } = getStatus(c.expDate);
+    const barW = getDaysBarWidth(c.expDate, c.mfgDate);
+    const barColor = getDaysBarColor(status);
+    const daysVal = status === 'expired' ? `<span class="val red">${Math.abs(days)}d AGO</span>` :
+                    status === 'ok' ? `<span class="val green">${days}d</span>` :
+                    `<span class="val orange">${days}d</span>`;
+    return `
+    <div class="chem-card ${cls}">
+      <span class="card-badge ${badge}">${label}</span>
+      <div class="card-name">${c.name}</div>
+      <div class="card-id">${c.id}</div>
+      <div class="card-info">
+        ${c.qty ? `<div class="card-info-row"><span class="lbl">QTY</span><span class="val">${c.qty}</span></div>` : ''}
+        ${c.mfg ? `<div class="card-info-row"><span class="lbl">MFG</span><span class="val">${c.mfg}</span></div>` : ''}
+        ${c.loc ? `<div class="card-info-row"><span class="lbl">LOC</span><span class="val">${c.loc}</span></div>` : ''}
+        <div class="card-info-row"><span class="lbl">HAZARD</span><span class="val">${c.hazard || 'N/A'}</span></div>
+        <div class="card-info-row"><span class="lbl">EXPIRES</span><span class="val">${c.expDate}</span></div>
+        <div class="card-info-row"><span class="lbl">DAYS LEFT</span>${daysVal}</div>
+      </div>
+      <div class="days-bar"><div class="days-bar-fill" style="width:${barW}%;background:${barColor}"></div></div>
+      <div class="card-actions">
+        <button class="card-action-btn" onclick="openEdit('${c.id}')">Edit</button>
+        <button class="card-action-btn del" onclick="deleteChemical('${c.id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  updateStats();
+  checkAlerts();
+}
+
+function updateStats() {
+  const total = chemicals.length;
+  const expired = chemicals.filter(c => getStatus(c.expDate).status === 'expired').length;
+  const warn = chemicals.filter(c => ['warn3','warn7'].includes(getStatus(c.expDate).status)).length;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statWarn').textContent = warn;
+  document.getElementById('statExp').textContent = expired;
+}
+
+function checkAlerts() {
+  const expired = chemicals.some(c => getStatus(c.expDate).status === 'expired');
+  document.getElementById('alertBanner').style.display = expired ? 'block' : 'none';
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
+
+// ─── ADD CHEMICAL ─────────────────────────────────────────────────────────────
+function genId() {
+  return 'CHM-' + Date.now().toString(36).toUpperCase();
+}
+
+function addChemical() {
+  const name = document.getElementById('chemName').value.trim();
+  const expDate = document.getElementById('chemExpDate').value;
+  const mfg = document.getElementById('chemMfg').value.trim();
+
+  if (!name || !expDate || !mfg) { showToast('Fill in Name, Manufacturer & Expiry Date', 'error'); return; }
+
+  const chem = {
+    id: document.getElementById('chemId').value.trim() || genId(),
+    name, expDate,
+    mfgDate: document.getElementById('chemMfgDate').value,
+    mfg, qty: document.getElementById('chemQty').value.trim(),
+    batch: document.getElementById('chemBatch').value.trim(),
+    loc: document.getElementById('chemLoc').value.trim(),
+    hazard: document.getElementById('chemHazard').value,
+    addedAt: new Date().toISOString()
+  };
+
+  chemicals.unshift(chem);
+  save();
+  renderList();
+  showToast(`${name} added to inventory`, 'success');
+
+  // Clear form
+  ['chemName','chemId','chemQty','chemMfg','chemBatch','chemMfgDate','chemExpDate','chemLoc'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+function deleteChemical(id) {
+  chemicals = chemicals.filter(c => c.id !== id);
+  save();
+  renderList();
+  showToast('Chemical removed', 'warning');
+}
+
+// ─── EDIT ─────────────────────────────────────────────────────────────────────
+function openEdit(id) {
+  const c = chemicals.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('editModalSub').textContent = c.id;
+  document.getElementById('editFormContent').innerHTML = `
+    <div class="field"><label>Chemical Name</label><input type="text" id="eName" value="${c.name}"></div>
+    <div class="form-row">
+      <div class="field"><label>Quantity</label><input type="text" id="eQty" value="${c.qty||''}"></div>
+      <div class="field"><label>Location</label><input type="text" id="eLoc" value="${c.loc||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Expiry Date</label><input type="date" id="eExp" value="${c.expDate}"></div>
+      <div class="field"><label>Hazard</label>
+        <select id="eHaz">
+          ${['Low','Medium','High','Extreme'].map(h => `<option ${c.hazard===h?'selected':''}>${h}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveEdit('${id}')">💾 Save Changes</button>
+  `;
+  document.getElementById('editModal').classList.add('show');
+}
+
+function saveEdit(id) {
+  const idx = chemicals.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  chemicals[idx].name = document.getElementById('eName').value;
+  chemicals[idx].qty = document.getElementById('eQty').value;
+  chemicals[idx].loc = document.getElementById('eLoc').value;
+  chemicals[idx].expDate = document.getElementById('eExp').value;
+  chemicals[idx].hazard = document.getElementById('eHaz').value;
+  save();
+  renderList();
+  closeModal();
+  showToast('Chemical updated', 'success');
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('show');
+}
+
+// ─── QR SCANNER ───────────────────────────────────────────────────────────────
+let html5QrcodeScanner = null;
+function initScanner() {
+  try {
+    html5QrcodeScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: 220 }, false);
+    html5QrcodeScanner.render(onScanSuccess, onScanError);
+  } catch(e) { console.log('QR scanner init failed', e); }
+}
+
+function onScanSuccess(decodedText) {
+  const el = document.getElementById('scanResult');
+  el.style.display = 'block';
+  el.textContent = '✓ Scanned: ' + decodedText;
+  try {
+    const data = JSON.parse(decodedText);
+    scannedData = data;
+    showScannedForm(data);
+  } catch(e) {
+    scannedData = { name: decodedText, id: genId() };
+    showScannedForm(scannedData);
+  }
+}
+function onScanError() {}
+
+function showScannedForm(data) {
+  const fields = document.getElementById('scannedFields');
+  fields.innerHTML = Object.entries(data).map(([k,v]) =>
+    `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text-dim);font-family:var(--mono);font-size:10px;text-transform:uppercase">${k}</span>
+      <span style="color:var(--text)">${v}</span>
+    </div>`
+  ).join('');
+  document.getElementById('scannedForm').style.display = 'block';
+}
+
+function saveScannedChem() {
+  if (!scannedData) return;
+  const chem = {
+    id: scannedData.id || genId(),
+    name: scannedData.name || 'Unknown',
+    expDate: scannedData.expDate || scannedData.exp || '',
+    mfgDate: scannedData.mfgDate || scannedData.mfg_date || '',
+    mfg: scannedData.mfg || scannedData.manufacturer || '',
+    qty: scannedData.qty || scannedData.quantity || '',
+    batch: scannedData.batch || '',
+    loc: scannedData.loc || scannedData.location || '',
+    hazard: scannedData.hazard || 'Medium',
+    addedAt: new Date().toISOString()
+  };
+  if (!chem.expDate) { showToast('No expiry date in QR data', 'error'); return; }
+  chemicals.unshift(chem);
+  save();
+  renderList();
+  showToast(`${chem.name} added via QR scan`, 'success');
+  document.getElementById('scannedForm').style.display = 'none';
+  document.getElementById('scanResult').style.display = 'none';
+  scannedData = null;
+}
+
+// ─── QR GENERATOR ─────────────────────────────────────────────────────────────
+function generateQR() {
+  const name = document.getElementById('genName').value.trim();
+  const expDate = document.getElementById('genExpDate').value;
+  if (!name || !expDate) { showToast('Name and Expiry Date required', 'error'); return; }
+
+  const data = {
+    id: genId(),
+    name,
+    expDate,
+    mfgDate: document.getElementById('genMfgDate').value,
+    mfg: document.getElementById('genMfg').value.trim(),
+    qty: document.getElementById('genQty').value.trim(),
+    hazard: document.getElementById('genHazard').value,
+    loc: document.getElementById('genLoc').value.trim()
+  };
+
+  const jsonStr = JSON.stringify(data);
+  const canvas = document.getElementById('qrCanvas');
+  canvas.style.display = 'block';
+
+  // Use QR code generation via a simple approach
+  // We'll encode via a free QR API rendered to canvas via image
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  const encoded = encodeURIComponent(jsonStr);
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encoded}&bgcolor=0d1b2a&color=00e5ff&format=png`;
+  img.onload = () => {
+    canvas.width = img.naturalWidth || 250;
+    canvas.height = img.naturalHeight || 250;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1b2a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    document.getElementById('downloadQrBtn').style.display = 'inline-block';
+  };
+  img.onerror = () => {
+    // Offline fallback: show text-only QR placeholder
+    canvas.width = 250; canvas.height = 250;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1b2a';
+    ctx.fillRect(0, 0, 250, 250);
+    ctx.fillStyle = '#00e5ff';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('QR requires internet', 125, 110);
+    ctx.fillText('Data stored locally', 125, 130);
+    ctx.fillText(name, 125, 155);
+    showToast('QR image needs internet connection', 'warning');
+  };
+
+  showToast('QR code generated!', 'success');
+}
+
+function downloadQR() {
+  const canvas = document.getElementById('qrCanvas');
+  const name = document.getElementById('genName').value.trim() || 'chemical';
+  const a = document.createElement('a');
+  a.download = `chemtrack-${name.replace(/\s+/g,'-').toLowerCase()}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const icons = { success: '✅', warning: '⚠️', error: '❌' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─── PWA: INSTALL ─────────────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  if (!localStorage.getItem('chemtrack_install_dismissed')) {
+    document.getElementById('installBanner').classList.add('show');
+  }
+});
+
+function installApp() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(choice => {
+      if (choice.outcome === 'accepted') {
+        showToast('ChemTrack installed!', 'success');
+        document.getElementById('installBanner').classList.remove('show');
+      }
+      deferredInstallPrompt = null;
+    });
+  } else {
+    // iOS fallback instructions
+    showToast('Tap Share → "Add to Home Screen" on iOS', 'warning');
+  }
+}
+
+function dismissInstall() {
+  document.getElementById('installBanner').classList.remove('show');
+  localStorage.setItem('chemtrack_install_dismissed', '1');
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('show');
+  showToast('ChemTrack installed successfully!', 'success');
+});
+
+// ─── OFFLINE DETECTION ────────────────────────────────────────────────────────
+function updateOnlineStatus() {
+  document.getElementById('offlineBadge').style.display = navigator.onLine ? 'none' : 'block';
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ─── SERVICE WORKER (inline, registered via blob) ─────────────────────────────
+const swCode = `
+const CACHE = 'chemtrack-v1';
+const ASSETS = [self.location.href];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+    )).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(resp => {
+        if (resp && resp.status === 200 && resp.type === 'basic') {
+          const clone = resp.clone();
+          caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => cached || new Response('Offline', {status: 503}));
+    })
+  );
+});
+`;
+
+if ('serviceWorker' in navigator) {
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl, { scope: './' })
+    .then(() => console.log('ChemTrack SW registered'))
+    .catch(err => console.log('SW registration failed:', err));
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+initScanner();
+renderList();
+
+// Notification permission for expiry alerts
+if ('Notification' in window && Notification.permission === 'default') {
+  setTimeout(() => {
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') {
+        const expired = chemicals.filter(c => getStatus(c.expDate).status === 'expired');
+        if (expired.length) {
+          new Notification('ChemTrack Alert', {
+            body: `${expired.length} chemical(s) have expired!`,
+            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text y="52" font-size="52">⚗️</text></svg>'
+          });
+        }
+      }
+    });
+  }, 3000);
+}
+</script>
+</body>
+</html>
