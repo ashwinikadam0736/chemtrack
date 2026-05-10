@@ -930,6 +930,50 @@ let currentFilter = 'all';
 let scannedData = null;
 let deferredInstallPrompt = null;
 
+// ─── ALERT SOUND ENGINE ───────────────────────────────────────────────────────
+let _audioCtx = null;
+function _getCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+function _beep(freq, dur, type, vol, delay) {
+  const ctx = _getCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type; osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, ctx.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+  osc.start(ctx.currentTime + delay);
+  osc.stop(ctx.currentTime + delay + dur);
+}
+
+// Alert 1: Expiring in 7 days — two soft warning tones
+function soundExpiringSoon() {
+  try { _beep(880, 0.25, 'sine', 0.35, 0); _beep(880, 0.25, 'sine', 0.35, 0.35); } catch(e) {}
+}
+// Alert 2: Expiring in 3 days — three urgent tones, slightly lower pitch
+function soundExpiringCritical() {
+  try {
+    _beep(660, 0.2, 'triangle', 0.5, 0);
+    _beep(660, 0.2, 'triangle', 0.5, 0.28);
+    _beep(660, 0.2, 'triangle', 0.5, 0.56);
+  } catch(e) {}
+}
+// Alert 3: Critical banner (expired chemicals) — danger siren sweep x3
+function soundCritical() {
+  try {
+    for (let i = 0; i < 3; i++) {
+      _beep(1100, 0.18, 'sawtooth', 0.55, i * 0.48);
+      _beep(750,  0.18, 'sawtooth', 0.55, i * 0.48 + 0.22);
+    }
+  } catch(e) {}
+}
+
+// Unlock audio context on first user interaction (browser policy)
+document.addEventListener('click', () => { try { _getCtx(); } catch(e) {} }, { once: false });
+
 function save() {
   localStorage.setItem('chemtrack_chemicals', JSON.stringify(chemicals));
 }
@@ -1042,9 +1086,20 @@ function updateStats() {
   document.getElementById('statExp').textContent = expired;
 }
 
+let _lastAlertState = { expired: false, warn3: false, warn7: false };
 function checkAlerts() {
-  const expired = chemicals.some(c => getStatus(c.expDate).status === 'expired');
-  document.getElementById('alertBanner').style.display = expired ? 'block' : 'none';
+  const hasExpired = chemicals.some(c => getStatus(c.expDate).status === 'expired');
+  const hasWarn3   = chemicals.some(c => getStatus(c.expDate).status === 'warn3');
+  const hasWarn7   = chemicals.some(c => getStatus(c.expDate).status === 'warn7');
+
+  document.getElementById('alertBanner').style.display = hasExpired ? 'block' : 'none';
+
+  // Only play sound when state newly becomes true (not every render)
+  if (hasExpired && !_lastAlertState.expired) soundCritical();
+  else if (hasWarn3 && !_lastAlertState.warn3) soundExpiringCritical();
+  else if (hasWarn7 && !_lastAlertState.warn7) soundExpiringSoon();
+
+  _lastAlertState = { expired: hasExpired, warn3: hasWarn3, warn7: hasWarn7 };
 }
 
 function setFilter(f, btn) {
@@ -1079,6 +1134,13 @@ function addChemical() {
 
   chemicals.unshift(chem);
   save();
+
+  // Play alert sound based on new chemical's expiry status
+  const newStatus = getStatus(chem.expDate).status;
+  if (newStatus === 'expired')     soundCritical();
+  else if (newStatus === 'warn3')  soundExpiringCritical();
+  else if (newStatus === 'warn7')  soundExpiringSoon();
+
   renderList();
   showToast(`${name} added to inventory`, 'success');
 
